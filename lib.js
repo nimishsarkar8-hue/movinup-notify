@@ -21,28 +21,29 @@ const REMINDER_IDS = ['water', 'steps', 'food'];
 
 // Several wordings per reminder so it does not read the same every day. Picked by the day of the year.
 const REMINDERS = {
+  // Worded as a check-in, not an order, so it reads fine whether the goal is already done or not (the sender cannot see progress).
   water: {
     open: 'today',
     texts: [
-      { title: 'Water time', body: 'A glass of water is a quick win.' },
-      { title: 'Sip, sip', body: 'Top up your water for today.' },
-      { title: 'Drink up', body: 'Have you had enough water today?' }
+      { title: 'Water check', body: 'Log today\u2019s water, or take a few more sips.' },
+      { title: 'Hydration', body: 'A quick look at today\u2019s water.' },
+      { title: 'Water', body: 'Check in on today\u2019s water.' }
     ]
   },
   steps: {
     open: 'today',
     texts: [
-      { title: 'Steps check', body: 'A short walk could close out your steps today.' },
-      { title: 'Get moving', body: 'Check how your steps are looking today.' },
-      { title: 'Walk time', body: 'Every step counts. Fancy a stroll?' }
+      { title: 'Steps check', body: 'See how today\u2019s steps are looking.' },
+      { title: 'Steps', body: 'Log today\u2019s steps, or take a short walk.' },
+      { title: 'Today\u2019s steps', body: 'A quick look at where you are.' }
     ]
   },
   food: {
     open: 'food',
     texts: [
-      { title: 'Log your food', body: 'Add what you ate today while you remember it.' },
-      { title: 'Food log', body: 'Quick, log your meals before the day ends.' },
-      { title: 'What did you eat?', body: 'Take a minute to log today\u2019s food.' }
+      { title: 'Food log', body: 'Add anything you haven\u2019t logged yet.' },
+      { title: 'Food check', body: 'Anything left to log from today?' },
+      { title: 'Today\u2019s meals', body: 'Take a moment to check your log.' }
     ]
   }
 };

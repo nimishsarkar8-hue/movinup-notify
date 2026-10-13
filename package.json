@@ -1,0 +1,14 @@
+{
+  "name": "movinup-notify",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Scheduled sender for Movin' Up push notifications (GitHub Actions + Firebase Cloud Messaging)",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node send.js",
+    "dry": "node send.js --dry"
+  },
+  "dependencies": {
+    "firebase-admin": "14.5.0"
+  }
+}

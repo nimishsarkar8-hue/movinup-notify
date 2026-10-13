@@ -12,7 +12,9 @@
  */
 const fs = require('fs');
 const path = require('path');
-const admin = require('firebase-admin');
+const { initializeApp, cert, applicationDefault } = require('firebase-admin/app');
+const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 const { run, ping } = require('./run');
 
 function init() {
@@ -20,19 +22,19 @@ function init() {
   if (raw && raw.trim()) {
     let key;
     try { key = JSON.parse(raw); } catch (e) { throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON. Paste the whole key file, braces included.'); }
-    admin.initializeApp({ credential: admin.credential.cert(key) });
+    initializeApp({ credential: cert(key) });
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    admin.initializeApp();
+    initializeApp({ credential: applicationDefault() });
   } else {
     throw new Error('No credentials. Set FIREBASE_SERVICE_ACCOUNT (see README.md).');
   }
-  return admin.firestore();
+  return getFirestore();
 }
 
 const ms = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : 0;
 
 function makeStore(db) {
-  const FV = admin.firestore.FieldValue;
+  const FV = FieldValue;
   return {
     async listDevices() {
       const snap = await db.collection('pushDevices').get();
@@ -47,7 +49,7 @@ function makeStore(db) {
     },
     async setGlobal(o) { await db.doc('pushState/_global').set(o); },
     async listRequestsSince(sinceMs) {
-      const snap = await db.collection('friendRequests').where('createdAt', '>', admin.firestore.Timestamp.fromMillis(Math.max(0, sinceMs))).get();
+      const snap = await db.collection('friendRequests').where('createdAt', '>', Timestamp.fromMillis(Math.max(0, sinceMs))).get();
       return snap.docs.map((d) => {
         const x = d.data();
         return { id: d.id, from: x.from, to: x.to, fromName: x.fromName || 'Someone', createdMs: ms(x.createdAt) };
@@ -88,7 +90,7 @@ function challengeOf(d) {
 }
 
 function makeSender() {
-  const messaging = admin.messaging();
+  const messaging = getMessaging();
   return {
     // Data-only messages: sw.js decides what to show. Up to 500 per call.
     async sendAll(messages) {

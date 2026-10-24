@@ -15,9 +15,10 @@ const DEFAULT_PREFS = {
   challenges: true,
   water: { on: false, time: '18:00' },
   steps: { on: false, time: '19:00' },
-  food: { on: false, time: '20:30' }
+  food: { on: false, time: '20:30' },
+  weight: { on: false, time: '07:30' }
 };
-const REMINDER_IDS = ['water', 'steps', 'food'];
+const REMINDER_IDS = ['water', 'steps', 'food', 'weight'];
 
 // Several wordings per reminder so it does not read the same every day. Picked by the day of the year.
 const REMINDERS = {
@@ -44,6 +45,15 @@ const REMINDERS = {
       { title: 'Food log', body: 'Add anything you haven\u2019t logged yet.' },
       { title: 'Food check', body: 'Anything left to log from today?' },
       { title: 'Today\u2019s meals', body: 'Take a moment to check your log.' }
+    ]
+  },
+  // v2.0.39: a check-in that also says why the morning matters (best data: early, before food). Weight is logged on Today.
+  weight: {
+    open: 'today',
+    texts: [
+      { title: 'Weigh-in', body: 'Best readings come first thing in the morning, before food. Log your weight.' },
+      { title: 'Weight check', body: 'Early morning, before eating, gives the truest number. Note today\u2019s weight.' },
+      { title: 'Your weight', body: 'Weigh in before breakfast for the best data, then log it.' }
     ]
   }
 };

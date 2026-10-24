@@ -8,6 +8,7 @@
  *   store.listRequestsSince(ms)      -> [{ id, from, to, fromName, createdMs }]          friendRequests created after ms
  *   store.listOpenChallenges()       -> [{ id, creator, route, uids, names, status, createdMs }]   pending or active
  *   store.getChallenges(ids)         -> { id: doc | null }
+ *   store.listCheersSince(ms, ids)   -> [{ id, challengeId, from, to, fromName, createdMs }]   challenges/{id}/cheers created after ms, for those challenge ids (v2.0.37)
  *   store.getUserStates(uids)        -> { uid: { sent: { water: 'YYYY-MM-DD' } } }       pushState/{uid}
  *   store.markSent(uid, { id: date })
  *   store.removeToken(uid, tokenId)
@@ -49,7 +50,7 @@ async function run(store, sender, opts) {
       const dev = byUid.get(uid);
       if (!dev) continue;
       if (kind === 'friend' && !dev.prefs.friends) continue;
-      if (kind === 'challenge' && !dev.prefs.challenges) continue;
+      if ((kind === 'challenge' || kind === 'cheer') && !dev.prefs.challenges) continue;   // a cheer is a challenge update
       for (const t of dev.tokens) {
         messages.push(Object.assign({ uid, tokenId: t.id, token: t.token, data, ttl, kind }, extra || {}));
       }
@@ -73,6 +74,16 @@ async function run(store, sender, opts) {
   const ch = L.planChallenges(open, recorded, gone, routes, now);
   for (const e of ch.events) addTo(e.to, 'challenge', e.data, TTL_EVENT);
 
+  // 2b. cheers sent since the last run (v2.0.37). Only running challenges can hold new ones. The first run with this feature starts from now.
+  const routeOf = {};
+  for (const c of open) routeOf[c.id] = c.route;
+  const cheerCursor = global ? (global.cheerCursorMs || now) : now;
+  let cheersRead = [];
+  const activeIds = open.filter((c) => c.status === 'active').map((c) => c.id);
+  if (!first && activeIds.length && store.listCheersSince) cheersRead = await store.listCheersSince(cheerCursor - L.REQ_OVERLAP_MS, activeIds);
+  const chr = L.planCheers(cheersRead, global && global.cheerSeen, cheerCursor, now, routes, routeOf);
+  for (const e of chr.events) addTo(e.to, 'cheer', e.data, TTL_EVENT);
+
   // 3. daily reminders that are due
   const withReminders = devices.filter((d) => d.tz && L.REMINDER_IDS.some((id) => d.prefs[id].on));
   const states = withReminders.length ? await store.getUserStates(withReminders.map((d) => d.uid)) : {};
@@ -86,14 +97,14 @@ async function run(store, sender, opts) {
   }
 
   const summary = {
-    first, devices: devices.length, friend: fr.events.length, challenge: ch.events.length, reminders: remindersDue.length,
+    first, devices: devices.length, friend: fr.events.length, challenge: ch.events.length, cheers: chr.events.length, reminders: remindersDue.length,
     messages: messages.length, ok: 0, failed: 0, removed: 0, dry
   };
-  log('devices ' + devices.length + ', friend requests ' + fr.events.length + ', challenge events ' + ch.events.length +
+  log('devices ' + devices.length + ', friend requests ' + fr.events.length + ', challenge events ' + ch.events.length + ', cheers ' + chr.events.length +
     ', reminders due ' + remindersDue.length + ', pushes ' + messages.length + (first ? ' (first run: existing challenges noted, none announced)' : ''));
 
   // Remember what this run saw BEFORE sending, so a crash part-way can only skip a push, never repeat one.
-  const newGlobal = { reqCursorMs: now, reqSeen: fr.seen, challenges: ch.recorded, runAt: now };
+  const newGlobal = { reqCursorMs: now, reqSeen: fr.seen, challenges: ch.recorded, cheerCursorMs: now, cheerSeen: chr.seen, runAt: now };
   if (dry) {
     for (const m of messages) log('  would send to ' + m.uid + ': ' + m.data.title + ' / ' + m.data.body);
     return summary;

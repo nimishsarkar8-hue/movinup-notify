@@ -181,7 +181,31 @@ function planChallenges(open, recorded, gone, routes, nowMs) {
   return { events, recorded: next };
 }
 
+// ---------- cheers (v2.0.37) ----------
+// cheers: [{ id, challengeId, from, to, fromName, createdMs }] read from challenges/{id}/cheers since the cursor; routeOf: { challengeId: route id }.
+// seen: { 'challengeId:docId:createdMs': ms } what has already been announced. A cheer is replaced by a newer one (new createdMs), which counts as new.
+// Same shape as planFriendRequests: returns { events, seen, cursor }.
+function planCheers(cheers, seen, cursorMs, nowMs, routes, routeOf) {
+  const events = [];
+  const nextSeen = {};
+  for (const k of Object.keys(seen || {})) if (nowMs - seen[k] < SEEN_KEEP_MS) nextSeen[k] = seen[k];
+  let cursor = cursorMs;
+  for (const c of cheers) {
+    const key = c.challengeId + ':' + c.id + ':' + c.createdMs;
+    if (c.createdMs > cursor) cursor = c.createdMs;
+    if (nextSeen[key]) continue;
+    nextSeen[key] = nowMs;
+    if (nowMs - c.createdMs > STALE_MS) continue;
+    const route = routeName(routes, routeOf && routeOf[c.challengeId]);
+    events.push({
+      kind: 'cheer', to: [c.to],
+      data: { title: 'You got a cheer', body: '@' + (c.fromName || 'A friend') + ' cheered you on' + (route && route !== 'a walk' ? ' on ' + route : '') + '.', open: 'together', tag: 'cheer-' + c.from }
+    });
+  }
+  return { events, seen: nextSeen, cursor };
+}
+
 module.exports = {
   WINDOW_MIN, STALE_MS, REQ_OVERLAP_MS, DEFAULT_PREFS, REMINDER_IDS, REMINDERS,
-  normalizePrefs, localParts, dueReminders, reminderMessage, prettyRoute, routeName, planFriendRequests, planChallenges
+  normalizePrefs, localParts, dueReminders, reminderMessage, prettyRoute, routeName, planFriendRequests, planChallenges, planCheers
 };

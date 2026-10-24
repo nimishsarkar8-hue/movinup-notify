@@ -6,10 +6,12 @@ sends pushes through Firebase Cloud Messaging (free). It sends:
 - **Friend requests**: "X wants to be your friend." to the person who was asked.
 - **Challenge updates**: an invite to each invited friend; "started" to everyone when the last person accepts; "complete" and
   "called off" to everyone in the challenge.
+- **Cheers** (v2.0.37, also under "Challenge updates"): "@name cheered you on" to the friend who was cheered on a running walk.
+  The sender reads each running challenge's `cheers` subcollection and remembers where it stopped, so a cheer is announced once.
 - **Daily reminders** (water, steps, log food): once a day at the time each person picked, in their own time zone.
 
 Each person only gets what they switched on in Settings > Notifications. Nothing here can read anyone's food, weight, steps or
-workouts: it only reads `pushDevices` (their choices and phone addresses), `friendRequests`, `challenges` and `usernames`.
+workouts: it only reads `pushDevices` (their choices and phone addresses), `friendRequests`, `challenges` (and their `cheers`) and `usernames`.
 
 ## Put it online (one time)
 

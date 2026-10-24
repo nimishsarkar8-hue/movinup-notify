@@ -12,9 +12,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { initializeApp, cert, applicationDefault } = require('firebase-admin/app');
-const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
-const { getMessaging } = require('firebase-admin/messaging');
+const admin = require('firebase-admin');
 const { run, ping } = require('./run');
 
 function init() {
@@ -22,19 +20,19 @@ function init() {
   if (raw && raw.trim()) {
     let key;
     try { key = JSON.parse(raw); } catch (e) { throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON. Paste the whole key file, braces included.'); }
-    initializeApp({ credential: cert(key) });
+    admin.initializeApp({ credential: admin.credential.cert(key) });
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    initializeApp({ credential: applicationDefault() });
+    admin.initializeApp();
   } else {
     throw new Error('No credentials. Set FIREBASE_SERVICE_ACCOUNT (see README.md).');
   }
-  return getFirestore();
+  return admin.firestore();
 }
 
 const ms = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : 0;
 
 function makeStore(db) {
-  const FV = FieldValue;
+  const FV = admin.firestore.FieldValue;
   return {
     async listDevices() {
       const snap = await db.collection('pushDevices').get();
@@ -49,7 +47,7 @@ function makeStore(db) {
     },
     async setGlobal(o) { await db.doc('pushState/_global').set(o); },
     async listRequestsSince(sinceMs) {
-      const snap = await db.collection('friendRequests').where('createdAt', '>', Timestamp.fromMillis(Math.max(0, sinceMs))).get();
+      const snap = await db.collection('friendRequests').where('createdAt', '>', admin.firestore.Timestamp.fromMillis(Math.max(0, sinceMs))).get();
       return snap.docs.map((d) => {
         const x = d.data();
         return { id: d.id, from: x.from, to: x.to, fromName: x.fromName || 'Someone', createdMs: ms(x.createdAt) };
@@ -58,6 +56,18 @@ function makeStore(db) {
     async listOpenChallenges() {
       const snap = await db.collection('challenges').where('status', 'in', ['pending', 'active']).get();
       return snap.docs.map(challengeOf);
+    },
+    async listCheersSince(sinceMs, challengeIds) {
+      const since = admin.firestore.Timestamp.fromMillis(Math.max(0, sinceMs));
+      const out = [];
+      for (let i = 0; i < challengeIds.length; i += 20) {
+        const snaps = await Promise.all(challengeIds.slice(i, i + 20).map((id) => db.collection('challenges/' + id + '/cheers').where('createdAt', '>', since).get()));
+        snaps.forEach((snap, k) => snap.docs.forEach((d) => {
+          const x = d.data();
+          out.push({ id: d.id, challengeId: challengeIds[i + k], from: x.from, to: x.to, fromName: x.fromName || '', createdMs: ms(x.createdAt) });
+        }));
+      }
+      return out.filter((c) => c.from && c.to && c.createdMs);
     },
     async getChallenges(ids) {
       const out = {};
@@ -90,7 +100,7 @@ function challengeOf(d) {
 }
 
 function makeSender() {
-  const messaging = getMessaging();
+  const messaging = admin.messaging();
   return {
     // Data-only messages: sw.js decides what to show. Up to 500 per call.
     async sendAll(messages) {
